@@ -25,7 +25,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/golangchallenge/gc6/mazelib"
+	"github.com/isaiah/gc6/mazelib"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
