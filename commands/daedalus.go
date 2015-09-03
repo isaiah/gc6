@@ -217,7 +217,7 @@ func (m *Maze) SetTreasure(x, y int) error {
 	return nil
 }
 
-// Given Icarus's current location, Discover that room
+// LookAround Given Icarus's current location, Discover that room
 // Will return ErrVictory if Icarus is at the treasure.
 func (m *Maze) LookAround() (mazelib.Survey, error) {
 	if m.end.X == m.icarus.X && m.end.Y == m.icarus.Y {
@@ -228,8 +228,10 @@ func (m *Maze) LookAround() (mazelib.Survey, error) {
 	return m.Discover(m.icarus.X, m.icarus.Y)
 }
 
-// Given two points, survey the room.
+// Discover Given two points, survey the room.
 // Will return error if two points are outside of the maze
+// XXX it should check connected rooms, currently the PrintMaze
+// function ignores the West and North wall, meh
 func (m *Maze) Discover(x, y int) (mazelib.Survey, error) {
 	if r, err := m.GetRoom(x, y); err != nil {
 		return mazelib.Survey{}, nil
@@ -238,7 +240,7 @@ func (m *Maze) Discover(x, y int) (mazelib.Survey, error) {
 	}
 }
 
-// Moves Icarus's position left one step
+// MoveLeft Moves Icarus's position left one step
 // Will not permit moving through walls or out of the maze
 func (m *Maze) MoveLeft() error {
 	s, e := m.LookAround()
@@ -366,4 +368,122 @@ func createMaze() *Maze {
 	// Use the mazelib.AddWall & mazelib.RmWall to do this
 
 	return emptyMaze()
+}
+
+// MY SOLUTIONS
+type Direction int
+
+const (
+	E = mazelib.E
+	W = mazelib.W
+	S = mazelib.S
+	N = mazelib.N
+)
+
+var (
+	DX = map[int]int{
+		E: 1,
+		W: -1,
+		S: 0,
+		N: 0,
+	}
+	DY = map[int]int{
+		E: 0,
+		W: 0,
+		S: 1,
+		N: -1,
+	}
+	OPPOSITE = map[int]int{
+		E: W,
+		W: E,
+		N: S,
+		S: N,
+	}
+	DIRECTIONS = []int{N, W, S, E}
+)
+
+// THis is adopted from
+// http://weblog.jamisbuck.org/2010/12/27/maze-generation-recursive-backtracking.html
+func (m *Maze) carvePassagesFrom(x, y int) {
+	for _, i := range rand.Perm(4) {
+		d := DIRECTIONS[i]
+		nx, ny := x+DX[d], y+DY[d]
+		croom, _ := m.GetRoom(x, y)
+		room, err := m.GetRoom(nx, ny)
+		if err == nil && !room.Visited {
+			croom.RmWall(d)
+			room.RmWall(OPPOSITE[d])
+			room.Visited = true
+			m.carvePassagesFrom(nx, ny)
+		}
+	}
+	// TODO: reset visited flag of the rooms
+}
+
+// Eller's Algorithm
+// http://weblog.jamisbuck.org/2010/12/29/maze-generation-eller-s-algorithm.html
+type state struct {
+	width   int
+	nextSet int
+	sets    map[string][]string
+	cells   map[string]map[string][]string
+}
+
+// Kruskal's Algorithm
+// http://weblog.jamisbuck.org/2011/1/3/maze-generation-kruskal-s-algorithm.html
+
+type bitmap map[*mazelib.Room]*tree
+
+func (m *Maze) kruskal() {
+	r := rand.New(rand.NewSource(rand.Int63n(99)))
+	trees := make(bitmap)
+	edges := [][]int{}
+	for _, y := range r.Perm(m.Height()) {
+		for _, x := range r.Perm(m.Width()) {
+			for _, d := range DIRECTIONS[0:2] {
+				edges = append(edges, []int{x, y, d})
+			}
+		}
+	}
+	for _, i := range r.Perm(len(edges)) {
+		edge := edges[i]
+		x, y, d := edge[0], edge[1], edge[2]
+		nx, ny := x+DX[d], y+DY[d]
+		cr, _ := m.GetRoom(x, y)
+		if trees[cr] == nil {
+			trees[cr] = &tree{}
+		}
+		nr, _ := m.GetRoom(nx, ny)
+		if trees[nr] == nil {
+			trees[nr] = &tree{}
+		}
+
+		if trees.isConnected(cr, nr) {
+			continue
+		}
+		trees.connect(cr, nr)
+		cr.RmWall(d)
+		nr.RmWall(OPPOSITE[d])
+	}
+}
+
+type tree struct {
+	parent *tree
+}
+
+func (t *tree) root() *tree {
+	root := t
+	for {
+		if root.parent == nil {
+			return root
+		}
+		root = root.parent
+	}
+}
+
+func (b bitmap) isConnected(cr, nr *mazelib.Room) bool {
+	return b[cr].root() == b[nr].root()
+}
+func (b bitmap) connect(cr, nr *mazelib.Room) {
+	b[nr].root().parent = b[cr]
 }
