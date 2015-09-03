@@ -510,7 +510,8 @@ func (m *Maze) neighbors(x, y int) map[*mazelib.Room][]int {
 	return rooms
 }
 
-func (m *Maze) prim() {
+func prim() *Maze {
+	m := emptyMaze()
 	// frontier
 	frontiers := make(map[*mazelib.Room][]int)
 	// connected rooms
@@ -546,6 +547,7 @@ func (m *Maze) prim() {
 			}
 		}
 	}
+	return m
 }
 
 func randomRoom(f map[*mazelib.Room][]int) *mazelib.Room {
@@ -566,5 +568,86 @@ func direction(x, y, nx, ny int) int {
 		return S
 	default:
 		return N
+	}
+}
+
+// Recursive division
+// http://weblog.jamisbuck.org/2011/1/12/maze-generation-recursive-division-algorithm.html
+
+const (
+	HORIZONTAL = 1
+	VERTICAL   = 2
+)
+
+func recursiveDivision() *Maze {
+	m := emptyMaze()
+	m.divide(0, 0, m.Width(), m.Height(), chooseOrientation(m.Width(), m.Height()))
+	// Add the borders
+	w, h := m.Width(), m.Height()
+	for x := 0; x < w; x++ {
+		r, _ := m.GetRoom(x, h-1)
+		r.AddWall(mazelib.S)
+	}
+	for y := 0; y < h; y++ {
+		r, _ := m.GetRoom(w-1, y)
+		r.AddWall(mazelib.E)
+	}
+	return m
+}
+
+func chooseOrientation(w, h int) int {
+	switch {
+	case w < h:
+		return HORIZONTAL
+	case w > h:
+		return VERTICAL
+	case rand.Intn(2) == 0:
+		return HORIZONTAL
+	default:
+		return VERTICAL
+	}
+}
+
+func (m *Maze) divide(x, y, width, height, orientation int) {
+	if width < 2 || height < 2 {
+		return
+	}
+	var wx, wy, px, py int
+	if orientation == HORIZONTAL {
+		if height > 2 {
+			wy = y + rand.Intn(height-2)
+		} else {
+			wy = y
+		}
+		px = x + rand.Intn(width)
+		for wx = x; wx-x < width; wx++ {
+			if wx == px {
+				continue
+			}
+			room, _ := m.GetRoom(wx, wy)
+			room.AddWall(mazelib.S)
+		}
+		h := wy - y + 1
+		m.divide(x, y, width, h, chooseOrientation(width, h))
+		h = y + height - wy - 1
+		m.divide(x, wy+1, width, h, chooseOrientation(width, h))
+	} else {
+		if width > 2 {
+			wx = x + rand.Intn(width-2)
+		} else {
+			wx = x
+		}
+		py = y + rand.Intn(height)
+		for wy = y; wy-y < height; wy++ {
+			if wy == py {
+				continue
+			}
+			room, _ := m.GetRoom(wx, wy)
+			room.AddWall(mazelib.E)
+		}
+		w := wx - x + 1
+		m.divide(x, y, w, height, chooseOrientation(w, height))
+		w = x + width - wx - 1
+		m.divide(wx+1, y, w, height, chooseOrientation(w, height))
 	}
 }
