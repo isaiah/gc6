@@ -651,3 +651,57 @@ func (m *Maze) divide(x, y, width, height, orientation int) {
 		m.divide(wx+1, y, w, height, chooseOrientation(w, height))
 	}
 }
+
+// Hunt and kill
+// http://weblog.jamisbuck.org/2011/1/24/maze-generation-hunt-and-kill-algorithm.html
+func (m *Maze) walk(x, y int) []int {
+	for _, i := range rand.Perm(4) {
+		d := DIRECTIONS[i]
+		nx, ny := x+DX[d], y+DY[d]
+		room, err := m.GetRoom(nx, ny)
+		if err == nil && !room.Visited {
+			cr, _ := m.GetRoom(x, y)
+			cr.RmWall(d)
+			room.RmWall(OPPOSITE[d])
+
+			room.Visited = true
+			cr.Visited = true
+			return []int{nx, ny}
+		}
+	}
+	return []int{}
+}
+
+func (m *Maze) hunt() []int {
+	for y := 0; y < m.Height(); y++ {
+		for x := 0; x < m.Width(); x++ {
+			r, _ := m.GetRoom(x, y)
+			if r.Visited {
+				continue
+			}
+			// random direction
+			for _, i := range rand.Perm(4) {
+				d := DIRECTIONS[i]
+				if nr, err := m.GetRoom(x+DX[d], y+DY[d]); err == nil && nr.Visited {
+					r.RmWall(d)
+					nr.RmWall(OPPOSITE[d])
+					r.Visited = true
+					return []int{x, y}
+				}
+			}
+		}
+	}
+	return []int{}
+}
+
+func huntAndKill() *Maze {
+	m := fullMaze()
+	loc := []int{rand.Intn(m.Width()), rand.Intn(m.Height())}
+	for len(loc) != 0 {
+		loc = m.walk(loc[0], loc[1])
+		if len(loc) == 0 {
+			loc = m.hunt()
+		}
+	}
+	return m
+}
