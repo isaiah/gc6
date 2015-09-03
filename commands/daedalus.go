@@ -487,3 +487,84 @@ func (b bitmap) isConnected(cr, nr *mazelib.Room) bool {
 func (b bitmap) connect(cr, nr *mazelib.Room) {
 	b[nr].root().parent = b[cr]
 }
+
+// Prim's Algorithm
+// http://weblog.jamisbuck.org/2011/1/10/maze-generation-prim-s-algorithm.html
+func (m *Maze) neighbors(x, y int) map[*mazelib.Room][]int {
+	rooms := make(map[*mazelib.Room][]int)
+	// don't change the order, seems like randomness of map iteration is not so
+	// random afterall
+	if room, err := m.GetRoom(x, y-1); err == nil {
+		rooms[room] = []int{x, y - 1}
+	}
+	if room, err := m.GetRoom(x-1, y); err == nil {
+		rooms[room] = []int{x - 1, y}
+	}
+	if room, err := m.GetRoom(x, y+1); err == nil {
+		rooms[room] = []int{x, y + 1}
+	}
+	if room, err := m.GetRoom(x+1, y); err == nil {
+		rooms[room] = []int{x + 1, y}
+	}
+
+	return rooms
+}
+
+func (m *Maze) prim() {
+	// frontier
+	frontiers := make(map[*mazelib.Room][]int)
+	// connected rooms
+	in := make(map[*mazelib.Room]bool)
+	x := rand.Intn(m.Width())
+	y := rand.Intn(m.Height())
+	room, _ := m.GetRoom(x, y)
+	frontiers[room] = []int{x, y}
+	in[room] = true
+	for r, loc := range m.neighbors(x, y) {
+		frontiers[r] = loc
+	}
+	// random room
+	for len(frontiers) > 0 {
+		r := randomRoom(frontiers)
+		loc := frontiers[r]
+		in[r] = true
+		delete(frontiers, r)
+		neighbors := m.neighbors(loc[0], loc[1])
+		for n, neighbor := range neighbors {
+			if in[n] {
+				d := direction(loc[0], loc[1], neighbor[0], neighbor[1])
+				r.RmWall(d)
+				n.RmWall(OPPOSITE[d])
+				// only one connected neighbor a time
+				break
+			}
+		}
+		// the other not connected neighbors are new frontiers
+		for n, neighbor := range neighbors {
+			if !in[n] {
+				frontiers[n] = neighbor
+			}
+		}
+	}
+}
+
+func randomRoom(f map[*mazelib.Room][]int) *mazelib.Room {
+	var rooms []*mazelib.Room
+	for r := range f {
+		rooms = append(rooms, r)
+	}
+	return rooms[rand.Intn(len(rooms))]
+}
+
+func direction(x, y, nx, ny int) int {
+	switch {
+	case x < nx:
+		return E
+	case x > nx:
+		return W
+	case y < ny:
+		return S
+	default:
+		return N
+	}
+}
