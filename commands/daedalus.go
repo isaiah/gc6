@@ -705,3 +705,43 @@ func huntAndKill() *Maze {
 	}
 	return m
 }
+
+// Growing tree Algorithm
+// http://weblog.jamisbuck.org/2011/1/27/maze-generation-growing-tree-algorithm.html
+func growingTree() *Maze {
+	m := fullMaze()
+	cells := [][]int{{rand.Intn(m.Width()), rand.Intn(m.Height())}}
+	for len(cells) > 0 {
+		idx := rand.Intn(len(cells))
+		loc := cells[idx]
+		x, y := loc[0], loc[1]
+		fallback := true
+		for _, i := range rand.Perm(4) {
+			d := DIRECTIONS[i]
+			cr, _ := m.GetRoom(x, y)
+			nx, ny := x+DX[d], y+DY[d]
+			if nr, err := m.GetRoom(nx, ny); err == nil && !nr.Visited {
+				cr.Visited = true
+				nr.Visited = true
+				cr.RmWall(d)
+				nr.RmWall(OPPOSITE[d])
+				cells = append(cells, []int{nx, ny})
+				fallback = false
+				break
+			}
+		}
+		if fallback {
+			switch {
+			case len(cells) == 1:
+				cells = [][]int{}
+			case idx-1 < 0:
+				cells = cells[idx+1:]
+			case idx+1 > len(cells):
+				cells = cells[0 : idx-1]
+			default:
+				cells = append(cells[0:idx-1], cells[idx+1:]...)
+			}
+		}
+	}
+	return m
+}
