@@ -66,6 +66,14 @@ func init() {
 	rand.Seed(time.Now().UTC().UnixNano()) // need to initialize the seed
 	gin.SetMode(gin.ReleaseMode)
 
+	daedalusCmd.Flags().IntP("width", "w", 15, "width of the laybrinth")
+	daedalusCmd.Flags().IntP("height", "y", 10, "height of the laybrinth")
+
+	// Bind viper to these flags so viper can also read them from config, env, etc.
+	viper.SetDefault("width", 15)
+	viper.SetDefault("height", 10)
+	viper.BindPFlag("width", daedalusCmd.Flags().Lookup("width"))
+	viper.BindPFlag("height", daedalusCmd.Flags().Lookup("height"))
 	RootCmd.AddCommand(daedalusCmd)
 }
 
@@ -360,14 +368,12 @@ func fullMaze() *Maze {
 
 // TODO: Write your maze creator function here
 func createMaze() *Maze {
-
-	// TODO: Fill in the maze:
-	// You need to insert a startingPoint for Icarus
-	// You need to insert an EndingPoint (treasure) for Icarus
-	// You need to Add and Remove walls as needed.
-	// Use the mazelib.AddWall & mazelib.RmWall to do this
-
-	return emptyMaze()
+	maze := kruskal()
+	_ = maze.SetStartPoint(rand.Intn(maze.Width()), rand.Intn(maze.Height()))
+	if err := maze.SetTreasure(rand.Intn(maze.Width()), rand.Intn(maze.Height())); err != nil {
+		return createMaze()
+	}
+	return maze
 }
 
 // MY SOLUTIONS
@@ -402,8 +408,13 @@ var (
 	DIRECTIONS = []int{N, W, S, E}
 )
 
-// THis is adopted from
+// This is adopted from
 // http://weblog.jamisbuck.org/2010/12/27/maze-generation-recursive-backtracking.html
+func recursiveBacktracking() *Maze {
+	m := fullMaze()
+	m.carvePassagesFrom(rand.Intn(m.Width()), rand.Intn(m.Height()))
+	return m
+}
 func (m *Maze) carvePassagesFrom(x, y int) {
 	for _, i := range rand.Perm(4) {
 		d := DIRECTIONS[i]
@@ -434,7 +445,8 @@ type state struct {
 
 type bitmap map[*mazelib.Room]*tree
 
-func (m *Maze) kruskal() {
+func kruskal() *Maze {
+	m := fullMaze()
 	r := rand.New(rand.NewSource(rand.Int63n(99)))
 	trees := make(bitmap)
 	edges := [][]int{}
@@ -465,6 +477,7 @@ func (m *Maze) kruskal() {
 		cr.RmWall(d)
 		nr.RmWall(OPPOSITE[d])
 	}
+	return m
 }
 
 type tree struct {
@@ -511,7 +524,7 @@ func (m *Maze) neighbors(x, y int) map[*mazelib.Room][]int {
 }
 
 func prim() *Maze {
-	m := emptyMaze()
+	m := fullMaze()
 	// frontier
 	frontiers := make(map[*mazelib.Room][]int)
 	// connected rooms
@@ -587,10 +600,14 @@ func recursiveDivision() *Maze {
 	for x := 0; x < w; x++ {
 		r, _ := m.GetRoom(x, h-1)
 		r.AddWall(mazelib.S)
+		r, _ = m.GetRoom(x, 0)
+		r.AddWall(mazelib.N)
 	}
 	for y := 0; y < h; y++ {
 		r, _ := m.GetRoom(w-1, y)
 		r.AddWall(mazelib.E)
+		r, _ = m.GetRoom(0, y)
+		r.AddWall(mazelib.W)
 	}
 	return m
 }

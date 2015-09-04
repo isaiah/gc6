@@ -84,10 +84,12 @@ func Move(direction string) (mazelib.Survey, error) {
 		rep := ToReply(contents)
 		if rep.Victory == true {
 			fmt.Println(rep.Message)
-			// os.Exit(1)
 			return rep.Survey, mazelib.ErrVictory
 		} else {
-			return rep.Survey, errors.New(rep.Message)
+			if rep.Error {
+				return rep.Survey, errors.New(rep.Message)
+			}
+			return rep.Survey, nil
 		}
 	}
 
@@ -110,17 +112,81 @@ func makeRequest(url string) ([]byte, error) {
 
 // Handling a JSON response and unmarshalling it into a reply struct
 func ToReply(in []byte) mazelib.Reply {
-	res := &mazelib.Reply{}
+	res := mazelib.Reply{}
 	json.Unmarshal(in, &res)
-	return *res
+	return res
 }
 
 // TODO: This is where you work your magic
 func solveMaze() {
-	_ = awake() // Need to start with waking up to initialize a new maze
+	// the stack
+	s := awake() // Need to start with waking up to initialize a new maze
 	// You'll probably want to set this to a named value and start by figuring
 	// out which step to take next
 
 	//TODO: Write your solver algorithm here
 
+	// -1 for starting point
+	stack := []*pos{{from: 0, to: directions(s, 0)}}
+	walk(stack)
 }
+
+// position
+type pos struct {
+	// from direction
+	from int
+	// to directions
+	to []int
+}
+
+// possible moving directions for the current room, without backward
+func directions(s mazelib.Survey, fromDirection int) []int {
+	var dirs []int
+	for _, d := range DIRECTIONS {
+		// don't go backwards
+		if d == OPPOSITE[fromDirection] {
+			continue
+		}
+		switch {
+		case d == E && !s.Right:
+			dirs = append(dirs, E)
+		case d == W && !s.Left:
+			dirs = append(dirs, W)
+		case d == S && !s.Bottom:
+			dirs = append(dirs, S)
+		case d == N && !s.Top:
+			dirs = append(dirs, N)
+		}
+	}
+	return dirs
+}
+
+func walk(stack []*pos) {
+	if len(stack) == 0 {
+		fmt.Println("no treasure?")
+		return
+	}
+	r := stack[0]
+	// if deadend, pop stack
+	if len(r.to) == 0 {
+		// move back
+		_, _ = Move(dirMapping[OPPOSITE[r.from]])
+		walk(stack[1:])
+	} else {
+		d := r.to[0]
+		r.to = r.to[1:]
+		s, err := Move(dirMapping[d])
+		if err == mazelib.ErrVictory {
+			return
+		}
+		if err != nil {
+			fmt.Println(err.Error())
+			return
+		}
+		newPos := &pos{from: d, to: directions(s, d)}
+		stack = append([]*pos{newPos}, stack...)
+		walk(stack)
+	}
+}
+
+var dirMapping = map[int]string{E: "right", W: "left", S: "down", N: "up"}
