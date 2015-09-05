@@ -170,11 +170,12 @@ func walk(stack []*pos) {
 	// if deadend, pop stack
 	if len(r.to) == 0 {
 		// move back
+		//fmt.Printf("move back %s\n", dirMapping[OPPOSITE[r.from]])
 		_, _ = Move(dirMapping[OPPOSITE[r.from]])
 		walk(stack[1:])
 	} else {
 		d := r.to[0]
-		r.to = r.to[1:]
+		//fmt.Printf("move %s\n", dirMapping[d])
 		s, err := Move(dirMapping[d])
 		if err == mazelib.ErrVictory {
 			return
@@ -184,8 +185,7 @@ func walk(stack []*pos) {
 			return
 		}
 		newPos := &pos{from: d, to: directions(s, d)}
-		stack = append([]*pos{newPos}, stack...)
-		walk(stack)
+		walk(append([]*pos{newPos, {from: r.from, to: r.to[1:]}}, stack[1:]...))
 	}
 }
 

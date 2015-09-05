@@ -90,7 +90,8 @@ func RunServer() {
 	}()
 
 	// Using gin-gonic/gin to handle our routing
-	r := gin.Default()
+	//r := gin.Default()
+	r := gin.New()
 	v1 := r.Group("/")
 	{
 		v1.GET("/awake", GetStartingPoint)
@@ -137,6 +138,8 @@ func MoveDirection(c *gin.Context) {
 	case "up":
 		err = currentMaze.MoveUp()
 	}
+	fmt.Print("\033[H\033[2J")
+	mazelib.PrintMaze(currentMaze)
 
 	var r mazelib.Reply
 
@@ -368,7 +371,12 @@ func fullMaze() *Maze {
 
 // TODO: Write your maze creator function here
 func createMaze() *Maze {
-	maze := kruskal()
+	maze := recursiveBacktracking()
+	//maze := recursiveDivision()
+	//maze := kruskal()
+	//maze := prim()
+	//maze := growingTree()
+	//maze := huntAndKill()
 	_ = maze.SetStartPoint(rand.Intn(maze.Width()), rand.Intn(maze.Height()))
 	if err := maze.SetTreasure(rand.Intn(maze.Width()), rand.Intn(maze.Height())); err != nil {
 		return createMaze()
@@ -412,7 +420,10 @@ var (
 // http://weblog.jamisbuck.org/2010/12/27/maze-generation-recursive-backtracking.html
 func recursiveBacktracking() *Maze {
 	m := fullMaze()
-	m.carvePassagesFrom(rand.Intn(m.Width()), rand.Intn(m.Height()))
+	x, y := rand.Intn(m.Width()), rand.Intn(m.Height())
+	r, _ := m.GetRoom(x, y)
+	r.Visited = true
+	m.carvePassagesFrom(x, y)
 	return m
 }
 func (m *Maze) carvePassagesFrom(x, y int) {
@@ -421,12 +432,13 @@ func (m *Maze) carvePassagesFrom(x, y int) {
 		nx, ny := x+DX[d], y+DY[d]
 		croom, _ := m.GetRoom(x, y)
 		room, err := m.GetRoom(nx, ny)
-		if err == nil && !room.Visited {
-			croom.RmWall(d)
-			room.RmWall(OPPOSITE[d])
-			room.Visited = true
-			m.carvePassagesFrom(nx, ny)
+		if err != nil || room.Visited {
+			continue
 		}
+		croom.RmWall(d)
+		room.RmWall(OPPOSITE[d])
+		room.Visited = true
+		m.carvePassagesFrom(nx, ny)
 	}
 	// TODO: reset visited flag of the rooms
 }
@@ -465,7 +477,10 @@ func kruskal() *Maze {
 		if trees[cr] == nil {
 			trees[cr] = &tree{}
 		}
-		nr, _ := m.GetRoom(nx, ny)
+		nr, err := m.GetRoom(nx, ny)
+		if err != nil {
+			continue
+		}
 		if trees[nr] == nil {
 			trees[nr] = &tree{}
 		}
@@ -643,6 +658,8 @@ func (m *Maze) divide(x, y, width, height, orientation int) {
 			}
 			room, _ := m.GetRoom(wx, wy)
 			room.AddWall(mazelib.S)
+			nr, _ := m.GetRoom(wx, wy+1)
+			nr.AddWall(mazelib.N)
 		}
 		h := wy - y + 1
 		m.divide(x, y, width, h, chooseOrientation(width, h))
@@ -661,6 +678,8 @@ func (m *Maze) divide(x, y, width, height, orientation int) {
 			}
 			room, _ := m.GetRoom(wx, wy)
 			room.AddWall(mazelib.E)
+			nr, _ := m.GetRoom(wx+1, wy)
+			nr.AddWall(mazelib.W)
 		}
 		w := wx - x + 1
 		m.divide(x, y, w, height, chooseOrientation(w, height))
