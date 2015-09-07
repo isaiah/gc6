@@ -90,7 +90,6 @@ func RunServer() {
 	}()
 
 	// Using gin-gonic/gin to handle our routing
-	//r := gin.Default()
 	r := gin.New()
 	v1 := r.Group("/")
 	{
@@ -138,8 +137,8 @@ func MoveDirection(c *gin.Context) {
 	case "up":
 		err = currentMaze.MoveUp()
 	}
-	fmt.Print("\033[H\033[2J")
-	mazelib.PrintMaze(currentMaze)
+	//fmt.Print("\033[H\033[2J")
+	//mazelib.PrintMaze(currentMaze)
 
 	var r mazelib.Reply
 
@@ -369,12 +368,11 @@ func fullMaze() *Maze {
 	return z
 }
 
-// TODO: Write your maze creator function here
 func createMaze() *Maze {
-	maze := recursiveBacktracking()
+	//maze := recursiveBacktracking()
 	//maze := recursiveDivision()
 	//maze := kruskal()
-	//maze := prim()
+	maze := prim()
 	//maze := growingTree()
 	//maze := huntAndKill()
 	_ = maze.SetStartPoint(rand.Intn(maze.Width()), rand.Intn(maze.Height()))
@@ -383,9 +381,6 @@ func createMaze() *Maze {
 	}
 	return maze
 }
-
-// MY SOLUTIONS
-type Direction int
 
 const (
 	E = mazelib.E
@@ -547,7 +542,6 @@ func prim() *Maze {
 	x := rand.Intn(m.Width())
 	y := rand.Intn(m.Height())
 	room, _ := m.GetRoom(x, y)
-	frontiers[room] = []int{x, y}
 	in[room] = true
 	for r, loc := range m.neighbors(x, y) {
 		frontiers[r] = loc
